@@ -68,8 +68,4 @@ html, body {
 	border:1px solid #4C964D;
 	color:#FFF;
 }
-
-/* Matts custom css rules */
-.posts-summary h1 {font-size:18px; line-height:20px; min-height:75px;}
-.posts-summary .bd {color: #BBB; font-style:italic;}
-.post-summary {border-right: solid 1px #DDD; padding:5px;}	
+	

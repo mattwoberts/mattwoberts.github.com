@@ -1,0 +1,232 @@
+<?xml version="1.0" encoding="utf-8"?>
+<feed xmlns="http://www.w3.org/2005/Atom">
+ 
+ <title>Matt's code musings</title>
+ <link href="http://matt-roberts.me/atom.xml" rel="self"/>
+ <link href="http://matt-roberts.me"/>
+ <updated>2012-05-13T22:20:35+01:00</updated>
+ <id>http://matt-roberts.me</id>
+ <author>
+   <name>Matt Roberts</name>
+   <email>roberts.mattroberts ((at)) gmail ((dot)) com</email>
+ </author>
+
+ 
+ <entry>
+   <title>Automated web app deployment with TeamCity and MSDeploy</title>
+   <link href="http://matt-roberts.me/dev/2012/04/04/automated-web-app-deployment-with-teamcity-and-msdeploy"/>
+   <updated>2012-04-04T00:00:00+01:00</updated>
+   <id>hhttp://matt-roberts.me/dev/2012/04/04/automated-web-app-deployment-with-teamcity-and-msdeploy</id>
+   <content type="html">&lt;p&gt;Deployment. Don&amp;#8217;t you just love it. Well, we don&amp;#8217;t, which is why I needed to build something to make our asp.net mvc web application deployable, from a single click ideally. This post is about that, and what I did, and how it all works. A lot of what I did here was helped by a mammouth series of blog posts by Troy Hunt, which you can find &lt;a href='http://www.troyhunt.com/2010/11/you-deploying-it-wrong-teamcity.html'&gt;here&lt;/a&gt;. He goes into a lot of detail about setting it up, so if you&amp;#8217;re looking for a step-by-step guide, I&amp;#8217;d recommend you head over that way. This post is more a summary explanation of what we did and how it works for us.&lt;/p&gt;
+
+&lt;h2 id='what_we_had'&gt;What we had&lt;/h2&gt;
+
+&lt;p&gt;I&amp;#8217;d already set up a continous build server using the fantastic TeamCity, so we had that as a starting point. I&amp;#8217;d previously created a NANT script that did the build, ran all the tests, and this was all plumbed nicely into TeamCity and was monitoring our subversion repository and running the builds. If you don&amp;#8217;t have a build server set up, then I seriously can&amp;#8217;t recommend enough that you check out TeamCity. It&amp;#8217;s free with some limitations (number of projects), but it&amp;#8217;s awesome, very easy to install and setup, and you&amp;#8217;ll be amazed you managed without it when you get it going.&lt;/p&gt;
+
+&lt;p&gt;So, as well as this, I&amp;#8217;d also set-up Web Deploy which we were currently using for web-based deployments. More about this next.&lt;/p&gt;
+
+&lt;h2 id='msdeploy__web_deploy'&gt;MSDeploy / Web Deploy&lt;/h2&gt;
+
+&lt;p&gt;MSDeploy, is Microsoft&amp;#8217;s attempts to make web-deployment easier. It&amp;#8217;s actually &amp;#8220;Web Deploy&amp;#8221;, MSDeploy is the name of the command line tool you get to work with it. You can find out more about it from &lt;a href='http://www.iis.net/download/webdeploy'&gt;here&lt;/a&gt;, but in a nutshell it has a number of nifty powers, such as the ability to perform transforms as it deploys, detect missing dependencies, and the ability to only send files that have changed. The downside of MSDeply IMO is that it just doesn&amp;#8217;t seem to get enough coverage on the internet, and as such as quite badly documented.&lt;/p&gt;
+
+&lt;h3 id='setting_up_web_deploy'&gt;Setting up Web Deploy&lt;/h3&gt;
+
+&lt;p&gt;The first thing I did was to grab Web Deply (v2), from &lt;a href='http://www.iis.net/download/webdeploy'&gt;here&lt;/a&gt;. I installed that locally on my dev machine (which actualy doubles as the build server&amp;#8230; for now), and also did the same on the production web server itself. When installed on the server, we only needed to install the remote agent service - more on that &lt;a href='http://learn.iis.net/page.aspx/421/installing-web-deploy/'&gt;here&lt;/a&gt;.&lt;/p&gt;
+
+&lt;p&gt;Ok, so once all installed, I can then deploy the web app from Visual Studio. Before I do that, one thing I want to share is this useful nuget:&lt;/p&gt;
+
+&lt;p&gt;&lt;img alt='dependencies' src='/images/msdeploy1.jpg' /&gt;&lt;/p&gt;
+
+&lt;p&gt;So here, you can tell the web application that when you deploy it, you&amp;#8217;re also going to need to deploy additional assemblies for, for example &amp;#8220;ASP.NET MVC&amp;#8221;. Very useful indeed. So, now I can manually deploy using web deploy, by right-clicking on the web project, and choosing &amp;#8220;Publish..&amp;#8221;.&lt;/p&gt;
+
+&lt;p&gt;&lt;img alt='dependencies' src='/images/msdeploy2.jpg' /&gt;&lt;/p&gt;
+
+&lt;p&gt;I won&amp;#8217;t dwell too much on this, but I&amp;#8217;m publishing it to MyDomain.com, to the IIS website called &amp;#8220;MonitoringAppTest&amp;#8221;, with the user account on the server of Administrator. I should be able to use a different account here, but didn&amp;#8217;t get that to work&amp;#8230; I posted on SO and someone posted a great reply to assist - if you&amp;#8217;re worried about using the Admin account on the web server (and you have good reason to be) then check the SO post out &lt;a href='http://stackoverflow.com/questions/4428562/msdeploy-web-deploy-failing-with-401-auth-issues'&gt;here&lt;/a&gt;&lt;/p&gt;
+
+&lt;h2 id='plumbing_it_into_nant'&gt;Plumbing it into Nant&lt;/h2&gt;
+
+&lt;p&gt;So, we have the ability to deploy using web deploy. That&amp;#8217;s great, but what I was after was a single button deploy I could trigger from the TeamCity. This turned out to be pretty simple, once I had worked out how to get Web Deploy to work over the command line (and turn that into a nant script). My resulting nant script looks like this:&lt;/p&gt;
+
+&lt;p&gt;First, to &amp;#8220;package up&amp;#8221; the web app:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;&amp;lt;exec program=&amp;quot;${MSBuildPath}&amp;quot;&amp;gt;
+  &amp;lt;arg line=&amp;#39;&amp;quot;MonitoringApp/MonitoringApp.csproj&amp;quot;&amp;#39; /&amp;gt;
+  &amp;lt;arg line=&amp;quot;/property:Configuration=${SolutionConfiguration}&amp;quot; /&amp;gt;
+  &amp;lt;arg value=&amp;quot;/T:Package&amp;quot; /&amp;gt;
+  &amp;lt;arg value=&amp;quot;/verbosity:quiet&amp;quot; /&amp;gt;
+  &amp;lt;arg value=&amp;quot;/nologo&amp;quot; /&amp;gt;
+&amp;lt;/exec&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Troy hunt goes into detail about what the package contains if you&amp;#8217;re interested. Once packaged, I need to fire it to the web server:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt; &amp;lt;exec program=&amp;quot;MonitoringApp/obj/${SolutionConfiguration}/Package/MonitoringApp.deploy.cmd&amp;quot;&amp;gt;
+  &amp;lt;arg value=&amp;quot;/Y&amp;quot; /&amp;gt;
+  &amp;lt;arg value=&amp;quot;/M:https://MyDomain.com:8172/msdeploy.axd&amp;quot; /&amp;gt;
+  &amp;lt;arg value=&amp;quot;-allowUntrusted&amp;quot; /&amp;gt;
+  &amp;lt;arg value=&amp;quot;/U:Administrator&amp;quot; /&amp;gt;
+  &amp;lt;arg value=&amp;quot;/P:NotTellingYou&amp;quot; /&amp;gt;
+  &amp;lt;arg value=&amp;quot;/A:Basic&amp;quot; /&amp;gt;
+  &amp;lt;arg value=&amp;quot;-enableRule:DoNotDeleteRule&amp;quot; /&amp;gt;
+&amp;lt;/exec&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So, this command runs the &amp;#8220;MonitoringApp.deploy.cmd&amp;#8221; script that actually exists when you build the package. The arguments tell it where to publish, and also I set an additional rule (DoNotDeleteRule) that tells it not to delete anything already on the destination that wasn&amp;#8217;t deployed by web deploy (e.g. user uploads).&lt;/p&gt;
+
+&lt;p&gt;Almost done. You see, the script doesn&amp;#8217;t know which IIS site to target (e.g. MonitoringAppTest in my screenshot above), and I have a lot of them. It turns out that the package that is generated contains a &amp;#8220;.SetParameters.xml&amp;#8221; file, that contains additional parameters for the deployment. I needed to set name to my IIS web site name&amp;#8230;&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;&amp;lt;xmlpoke file=&amp;quot;MonitoringApp/obj/${SolutionConfiguration}/Package/MonitoringApp.SetParameters.xml&amp;quot;
+     xpath=&amp;quot;parameters/setParameter[@name = &amp;#39;IIS Web Application Name&amp;#39;]/@value&amp;quot;
+     value=&amp;quot;${deploy.iisWebSite}&amp;quot; /&amp;gt;&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Nant to the rescue! So I &amp;#8220;poke&amp;#8221; the IIS web application name parameter, using the property $deploy.iisWebSite (kind of like a variable in a nant script). I&amp;#8217;ll come back to where that gets set in the next section&amp;#8230;&lt;/p&gt;
+
+&lt;h2 id='plumbing_it_into_teamcity'&gt;Plumbing it into TeamCity&lt;/h2&gt;
+
+&lt;p&gt;This is really simple. First, I did all the simple stuff - created a new project, set the SVN repo, told it to ttrigger a NANT scipt target, and &lt;strong&gt;set the build trigger to manual&lt;/strong&gt; - I only want to deploy when I say so!&lt;/p&gt;
+
+&lt;p&gt;Once all this is done, I needed some way to tell TeamCity which IIS site to deploy to. To do this, I added a bunch of command line parameters to my nant build step - like &lt;code&gt;-D:deploy.iisWebSite=%env.iisWebSite%&lt;/code&gt; That tells TC to call nant and set the property &amp;#8220;deploy.iisWebSite&amp;#8221; to %env.iisWebSite%. Next, I go to the &amp;#8220;Build Parameters&amp;#8221; section in TeamCity, and set env.iisWebSite by adding an Environment variable with a value &amp;#8220;MonitoringAppTest&amp;#8221;. All done!&lt;/p&gt;
+
+&lt;p&gt;The beauty of this setup is that if I want to deploy to another site on the same box, I just need to copy the old deployment project in TC to a new one, and just change the build parameter to whatever&amp;#8230; So simple!&lt;/p&gt;
+
+&lt;h2 id='summary'&gt;Summary&lt;/h2&gt;
+
+&lt;p&gt;&lt;img alt='dependencies' src='/images/msdeploy3.jpg' /&gt;&lt;/p&gt;
+
+&lt;p&gt;There it is. Now I can see how many changes are waiting to be deployed from TC by looking at the &amp;#8220;pending&amp;#8221; dropdown, and when ready I hit &amp;#8220;Run&amp;#8221;, and off we go. I missed a few bits out from this, such as how we store the packages as artifacts in TeamCity, but I hope this shows how productive using Web Deploy, TeamCity, and a bit of NANT is to automate the otherwise dull process of deployment.&lt;/p&gt;
+
+&lt;p&gt;I&amp;#8217;ll also talk about how we manage SQL updates automatically in another post.&lt;/p&gt;</content>
+ </entry>
+ 
+ <entry>
+   <title>JavaScript - the good parts</title>
+   <link href="http://matt-roberts.me/dev/2012/03/27/javascript---the-good-parts"/>
+   <updated>2012-03-27T00:00:00+01:00</updated>
+   <id>hhttp://matt-roberts.me/dev/2012/03/27/javascript---the-good-parts</id>
+   <content type="html">&lt;p&gt;I reckon I&amp;#8217;ve been coding bits of JavaScript pushing on 14 years. In all that time I&amp;#8217;ve gotten better at it, but was guilty of never really caring about it until about 4 years ago. At first it was a necessary evil (I even used vbscript circa 1999 for some sites because I thought it was easier!), then it became just something I did without thinking too much about the code I was writing. But as it grew and grew, and more impressive and elaborate libraries started appearing, I realised I should pay more attention.&lt;/p&gt;
+
+&lt;h3 id='just_use_functions'&gt;Just use functions?!&lt;/h3&gt;
+
+&lt;p&gt;So, for the last couple of years, I&amp;#8217;ve been using things like jQuery and other JavaScript libs quite a lot, and whenever I look at the source code for these libs, I&amp;#8217;m finding all sorts of crazy stuff that actually looks quite terse and readible. I&amp;#8217;ve also been looking back at my code with a more critical eye. I mean, what&amp;#8217;s wrong with&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;var x,y;
+
+function doSomething() {
+	// Blah blah blah
+	x = 10;
+}
+
+function doSomethingElse() {
+	// Blah blah...
+	y = 10;
+}&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Oh. Turns out that plenty is wrong with that, actually.&lt;/p&gt;
+
+&lt;p&gt;Fast-forward to 2010 and I started at a new company, with the main responsibility of making a &lt;em&gt;responsive real time&lt;/em&gt; web application. Obvously if it&amp;#8217;s real-time it&amp;#8217;s going to be big with the javascript and ajax, right? We need instant updates in the web app so we need to plumb in all sorts of good stuff to make that happen. All this good stuff that needs lots and lots of javascript code.&lt;/p&gt;
+
+&lt;h3 id='time_to_learn_me_some_javascript_coding_patterns'&gt;Time to learn me some JavaScript coding patterns&lt;/h3&gt;
+
+&lt;p&gt;&lt;img alt='BookCover' src='https://encrypted-tbn3.google.com/images?q=tbn:ANd9GcRfoJw8n3AgSjhk_RcwX7zUbwr6dmcxXaISwPuYFZ7t-i-Vmcazqg' /&gt;&lt;/p&gt;
+
+&lt;p&gt;So, one book I&amp;#8217;d seen referenced a lot on stackoverflow and mentioned in blogs was &lt;a href='http://www.amazon.com/JavaScript-Good-Parts-Douglas-Crockford/dp/0596517742/ref=sr_1_1?s=books&amp;amp;ie=UTF8&amp;amp;qid=1332845139&amp;amp;sr=1-1'&gt;JavaScript - the good parts&lt;/a&gt;, by Douglas Crockford.&lt;/p&gt;
+
+&lt;p&gt;I can&amp;#8217;t recommend this book enough. It&amp;#8217;s pretty obvious that web applications are getting more complex with richer features now. Look at Gmail or Trello, these web applications rely on JavaScript to make all the good stuff happen. A good grounding in JavaScript is essential for a web developer, &lt;em&gt;especially&lt;/em&gt; when you start to make use of JavaScript libraries like BackBone.js to manage your code. Sure, you can probably get away without this grounding, and you can use things like coffeescript to help you hide from the javascript, but you&amp;#8217;re adding stuff ontop of a JavaScript foundation, and if you don&amp;#8217;t know how that foundation works, you&amp;#8217;re going to suffer. Let me talk a little more about what is wrong with the above code snippet..&lt;/p&gt;
+
+&lt;h3 id='this_and_that'&gt;this. And that.&lt;/h3&gt;
+
+&lt;p&gt;The syntax &lt;code&gt;function nameOfFunction() {...}&lt;/code&gt; is shorthand for &lt;code&gt;var nameOfFunction = function() {...}&lt;/code&gt;. The standard seems to be to use the latter, it makes it more obvious that the function is an object.&lt;/p&gt;
+
+&lt;p&gt;First of all, those functions are scoped to the global object. Functions are objects just like everything else in JavaScript, and they havw a scope. If you define functions like that well then you&amp;#8217;re defining then at the global scope level. That&amp;#8217;s evil. You could in-advertadly create global methods or variables that clash with other sub-components or libraries you&amp;#8217;re using, creating all sorts of bugs.&lt;/p&gt;
+
+&lt;p&gt;Every function you create in JavaScript also recieves 2 additional parameters: &lt;em&gt;this&lt;/em&gt; and &lt;em&gt;arguments&lt;/em&gt;. The value of &lt;em&gt;this&lt;/em&gt; depends on the way you invoke the method. Now, in this global context, &lt;em&gt;this&lt;/em&gt; is set to the global object, which isn&amp;#8217;t much use.&lt;/p&gt;
+
+&lt;p&gt;Going back to the example code, perhaps the easiest way to fix that code is to place it inside an &lt;em&gt;object literal&lt;/em&gt;, which is very simple:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;var pageHandlers = {
+	
+	x: 1,
+	y: 1,
+	
+	doSomething: function() {
+		// Do something
+		this.x = 2;
+	},
+
+	doSomethingElse: function() {
+		// Do something
+	},
+
+}&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So now all that gloabl stuff has been moved into &lt;code&gt;pageHandlers&lt;/code&gt;. You can call &lt;code&gt;PageHandlers.doSomething()&lt;/code&gt; for example. This moves the functions and the variables x &amp;amp; y out of the global scope, and into the pageHandlers object. Since this is an object, &lt;em&gt;this&lt;/em&gt; is now scoped to the object, which is why you can safely call this.x inside that code.&lt;/p&gt;
+
+&lt;p&gt;One thing I wanted to know from this book was how to do the equivilent of classes in JavaScript, I had my C# head on and wanted to do the same thing in JavaScript. Oops. Got that wrong too. JavaScript is a &lt;em&gt;prototypal language&lt;/em&gt;. There is no such thing as classes, it&amp;#8217;s class-free. Objects inherit from other objects, not from classes.&lt;/p&gt;
+
+&lt;p&gt;What I was looking for in my code, was the module pattern, which I&amp;#8217;ll quickly try to explain.&lt;/p&gt;
+
+&lt;h3 id='module_pattern'&gt;Module Pattern&lt;/h3&gt;
+
+&lt;p&gt;The problem with the code now is that although it&amp;#8217;s encapsulated inside an object, there is no security in place - all of my variables defined are accessible outside the object. For example you can &lt;code&gt;pageHandlers.x = 10;&lt;/code&gt; and while that might be fine for some situations, for others it might be a serious flaw. You can solve that with the module pattern:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;var pageHandler = (function() {
+	
+	var x = 1;
+	var y = 2;
+
+	return {
+		get_x: function() {
+			return x;
+		},
+
+		set_x: function(val) {
+			x = val;
+		},
+
+		doSomething: function() {
+			// Blah...
+		}
+	}
+}());&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;So, plenty going on in this code example..&lt;/p&gt;
+
+&lt;p&gt;First, pageHandler is not set to a function, it&amp;#8217;s set to the &lt;strong&gt;result of calling a function&lt;/strong&gt; - see the brackets at the end that call this function immediately. So this returns an object literal that contains these 3 methods. Each of the 3 methods has access to x &amp;amp; y because functions defined inside functions have access to objects/variables defined in the outer scope. It is possible with this code to do &lt;code&gt;pageHandler.set_x(10)&lt;/code&gt; but not &lt;code&gt;pageHandler.x = 1&lt;/code&gt;, because x &amp;amp; y are just variables defined inside that function - they are not accessable outside of it.&lt;/p&gt;
+
+&lt;p&gt;Now, the really cool thing about this code is that the inner object (the object literal we are returning) has a longer lifetime than the function inside which it is defined. Because the inner function makes use of the outer function, everything in that outer function continues to live, this is called a &lt;em&gt;closure&lt;/em&gt;. At least, this is my quite possibly somewhat simplified view of a closure. It&amp;#8217;s a great way to create modular objects with private/public methods.&lt;/p&gt;
+
+&lt;h3 id='did_i_mention_the_books_really_good'&gt;Did I mention the book&amp;#8217;s really good?&lt;/h3&gt;
+
+&lt;p&gt;There&amp;#8217;s a lot more such as dealing with inheritence effectively in the book. I&amp;#8217;m pretty excited by this now, and my view of javascript as a dull and extremely basic langauge that can&amp;#8217;t even do classes has been changed thanks to this book!&lt;/p&gt;</content>
+ </entry>
+ 
+ <entry>
+   <title>Formatting those sql_exec profiler outputs..</title>
+   <link href="http://matt-roberts.me/dev/2012/03/20/formatting-those-sql_exec-profiler-outputs"/>
+   <updated>2012-03-20T00:00:00+00:00</updated>
+   <id>hhttp://matt-roberts.me/dev/2012/03/20/formatting-those-sql_exec-profiler-outputs</id>
+   <content type="html">&lt;p&gt;I was debugging some long running queries the other day, using SQL Server profiler (BTW - here is a very decent free equivalent of this for those of you using SQL Express - which doesn&amp;#8217;t come with the profiler: &lt;a href='https://sites.google.com/site/sqlprofiler'&gt;sqlprofiler&lt;/a&gt; ) .&lt;/p&gt;
+
+&lt;p&gt;Anyhoo, one thing that has always been a pain for me is that the output you get from a sql_exec command - which is how most ORMs execute SQL against the database. Take this example command:&lt;/p&gt;
+
+&lt;pre&gt;&lt;code&gt;exec sp_executesql N&amp;#39;SELECT [t1].[CableSweepChangeId], [t1].[FrontEndId], [t1].[FrontEndPortNum], [t1].[IncomingTime], [t1].[Description], [t1].[ChangePoint], [t1].[OldLength], [t1].[NewLength], [t1].[EquipmentId], [t1].[DataLinkStateChange], [t1].[IsLink], [t1].[IsConnection], [t1].[IsLaptopChange], [t1].[EquipmentPortNum], [t1].[EquipmentName], [t1].[CableId], [t1].[CableLabel], [t1].[InstallType], [t1].[ConnectionSide]
+FROM (
+    SELECT ROW_NUMBER() OVER (ORDER BY [t0].[IncomingTime] DESC) AS [ROW_NUMBER], [t0].[CableSweepChangeId], [t0].[FrontEndId], [t0].[FrontEndPortNum], [t0].[IncomingTime], [t0].[Description], [t0].[ChangePoint], [t0].[OldLength], [t0].[NewLength], [t0].[EquipmentId], [t0].[DataLinkStateChange], [t0].[IsLink], [t0].[IsConnection], [t0].[IsLaptopChange], [t0].[EquipmentPortNum], [t0].[EquipmentName], [t0].[CableId], [t0].[CableLabel], [t0].[InstallType], [t0].[ConnectionSide]
+    FROM [CableChangeDetail] AS [t0]
+    ) AS [t1]
+WHERE [t1].[ROW_NUMBER] BETWEEN @p0 + 1 AND @p0 + @p1
+ORDER BY [t1].[ROW_NUMBER]&amp;#39;,N&amp;#39;@p0 int,@p1 int&amp;#39;,@p0=0,@p1=15&lt;/code&gt;&lt;/pre&gt;
+
+&lt;p&gt;Now, if I want to tweak this or play around with it, it&amp;#8217;s not much fun having it in this format.. I would prefer it in a format with all those params as DECLARE statements at the top. Which is why I wrote, and present to you now&amp;#8230;.. SQLEXEC FORMATTER!!!&lt;/p&gt;
+
+&lt;h2 id='httpexecsqlformatcom'&gt;&lt;a href='http://execsqlformat.com'&gt;http://execsqlformat.com&lt;/a&gt;&lt;/h2&gt;
+
+&lt;p&gt;Here it is in action:&lt;/p&gt;
+
+&lt;p&gt;&lt;img alt='book' src='http://dl.dropbox.com/u/292924/blog/execsqlformat.PNG' /&gt;&lt;/p&gt;
+
+&lt;p&gt;At the moment the copy to clipboard button is a bit bad at formatting the text, but I&amp;#8217;ll sort that one day, and you can always just copy the text manually.&lt;/p&gt;
+
+&lt;p&gt;Enjoy!&lt;/p&gt;</content>
+ </entry>
+ 
+ 
+</feed>

@@ -1,0 +1,276 @@
+
+<!DOCTYPE html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <title>Automated web app deployment with TeamCity and MSDeploy</title>
+    
+    <meta name="author" content="Matt Roberts">
+
+    <!-- Le HTML5 shim, for IE6-8 support of HTML elements -->
+    <!--[if lt IE 9]>
+      <script src="http://html5shim.googlecode.com/svn/trunk/html5.js"></script>
+    <![endif]-->
+
+    <!-- Le styles -->
+    <link href="/assets/themes/twitter/bootstrap/css/bootstrap.min.css" rel="stylesheet">
+    <link href="/assets/themes/twitter/css/style.css?body=1" rel="stylesheet" type="text/css" media="all">
+
+    <!-- Le fav and touch icons -->
+  <!-- Update these with your own images
+    <link rel="shortcut icon" href="images/favicon.ico">
+    <link rel="apple-touch-icon" href="images/apple-touch-icon.png">
+    <link rel="apple-touch-icon" sizes="72x72" href="images/apple-touch-icon-72x72.png">
+    <link rel="apple-touch-icon" sizes="114x114" href="images/apple-touch-icon-114x114.png">
+  -->
+  <script src='https://services.respondhq.com/Scripts/Azullo.Respond.UI.V3.0.js' type='text/javascript'></script>
+  <script type='text/javascript'>
+  Respond.AdBuilder(0, 1808);
+  </script>
+  
+  </head>
+
+  <body>
+
+    <div class="navbar">
+      <div class="navbar-inner">
+        <div class="container">
+          <a class="brand" href="/">Matt's code musings</a>
+          <ul class="nav">
+            
+            
+            
+
+
+  
+    
+    	
+    	<li><a href="/About.html">About</a></li>
+    	
+    
+  
+    
+    	
+    	<li><a href="/archive.html">Archive</a></li>
+    	
+    
+  
+    
+  
+    
+    	
+    	<li><a href="/categories.html">Categories</a></li>
+    	
+    
+  
+    
+  
+    
+  
+    
+    	
+    	<li><a href="/pages.html">Pages</a></li>
+    	
+    
+  
+    
+  
+    
+    	
+    	<li><a href="/tags.html">Tags</a></li>
+    	
+    
+  
+
+
+
+          </ul>
+        </div>
+      </div>
+    </div>
+
+    <div class="container">
+
+      <div class="content">
+        
+<div class="page-header">
+  <h1>Automated web app deployment with TeamCity and MSDeploy <small></small></h1>
+</div>
+
+<div class="row">
+  <div class="span8">
+    <p>Deployment. Don&#8217;t you just love it. Well, we don&#8217;t, which is why I needed to build something to make our asp.net mvc web application deployable, from a single click ideally. This post is about that, and what I did, and how it all works. A lot of what I did here was helped by a mammouth series of blog posts by Troy Hunt, which you can find <a href='http://www.troyhunt.com/2010/11/you-deploying-it-wrong-teamcity.html'>here</a>. He goes into a lot of detail about setting it up, so if you&#8217;re looking for a step-by-step guide, I&#8217;d recommend you head over that way. This post is more a summary explanation of what we did and how it works for us.</p>
+
+<h2 id='what_we_had'>What we had</h2>
+
+<p>I&#8217;d already set up a continous build server using the fantastic TeamCity, so we had that as a starting point. I&#8217;d previously created a NANT script that did the build, ran all the tests, and this was all plumbed nicely into TeamCity and was monitoring our subversion repository and running the builds. If you don&#8217;t have a build server set up, then I seriously can&#8217;t recommend enough that you check out TeamCity. It&#8217;s free with some limitations (number of projects), but it&#8217;s awesome, very easy to install and setup, and you&#8217;ll be amazed you managed without it when you get it going.</p>
+
+<p>So, as well as this, I&#8217;d also set-up Web Deploy which we were currently using for web-based deployments. More about this next.</p>
+
+<h2 id='msdeploy__web_deploy'>MSDeploy / Web Deploy</h2>
+
+<p>MSDeploy, is Microsoft&#8217;s attempts to make web-deployment easier. It&#8217;s actually &#8220;Web Deploy&#8221;, MSDeploy is the name of the command line tool you get to work with it. You can find out more about it from <a href='http://www.iis.net/download/webdeploy'>here</a>, but in a nutshell it has a number of nifty powers, such as the ability to perform transforms as it deploys, detect missing dependencies, and the ability to only send files that have changed. The downside of MSDeply IMO is that it just doesn&#8217;t seem to get enough coverage on the internet, and as such as quite badly documented.</p>
+
+<h3 id='setting_up_web_deploy'>Setting up Web Deploy</h3>
+
+<p>The first thing I did was to grab Web Deply (v2), from <a href='http://www.iis.net/download/webdeploy'>here</a>. I installed that locally on my dev machine (which actualy doubles as the build server&#8230; for now), and also did the same on the production web server itself. When installed on the server, we only needed to install the remote agent service - more on that <a href='http://learn.iis.net/page.aspx/421/installing-web-deploy/'>here</a>.</p>
+
+<p>Ok, so once all installed, I can then deploy the web app from Visual Studio. Before I do that, one thing I want to share is this useful nuget:</p>
+
+<p><img alt='dependencies' src='/images/msdeploy1.jpg' /></p>
+
+<p>So here, you can tell the web application that when you deploy it, you&#8217;re also going to need to deploy additional assemblies for, for example &#8220;ASP.NET MVC&#8221;. Very useful indeed. So, now I can manually deploy using web deploy, by right-clicking on the web project, and choosing &#8220;Publish..&#8221;.</p>
+
+<p><img alt='dependencies' src='/images/msdeploy2.jpg' /></p>
+
+<p>I won&#8217;t dwell too much on this, but I&#8217;m publishing it to MyDomain.com, to the IIS website called &#8220;MonitoringAppTest&#8221;, with the user account on the server of Administrator. I should be able to use a different account here, but didn&#8217;t get that to work&#8230; I posted on SO and someone posted a great reply to assist - if you&#8217;re worried about using the Admin account on the web server (and you have good reason to be) then check the SO post out <a href='http://stackoverflow.com/questions/4428562/msdeploy-web-deploy-failing-with-401-auth-issues'>here</a></p>
+
+<h2 id='plumbing_it_into_nant'>Plumbing it into Nant</h2>
+
+<p>So, we have the ability to deploy using web deploy. That&#8217;s great, but what I was after was a single button deploy I could trigger from the TeamCity. This turned out to be pretty simple, once I had worked out how to get Web Deploy to work over the command line (and turn that into a nant script). My resulting nant script looks like this:</p>
+
+<p>First, to &#8220;package up&#8221; the web app:</p>
+
+<pre><code>&lt;exec program=&quot;${MSBuildPath}&quot;&gt;
+  &lt;arg line=&#39;&quot;MonitoringApp/MonitoringApp.csproj&quot;&#39; /&gt;
+  &lt;arg line=&quot;/property:Configuration=${SolutionConfiguration}&quot; /&gt;
+  &lt;arg value=&quot;/T:Package&quot; /&gt;
+  &lt;arg value=&quot;/verbosity:quiet&quot; /&gt;
+  &lt;arg value=&quot;/nologo&quot; /&gt;
+&lt;/exec&gt;</code></pre>
+
+<p>Troy hunt goes into detail about what the package contains if you&#8217;re interested. Once packaged, I need to fire it to the web server:</p>
+
+<pre><code> &lt;exec program=&quot;MonitoringApp/obj/${SolutionConfiguration}/Package/MonitoringApp.deploy.cmd&quot;&gt;
+  &lt;arg value=&quot;/Y&quot; /&gt;
+  &lt;arg value=&quot;/M:https://MyDomain.com:8172/msdeploy.axd&quot; /&gt;
+  &lt;arg value=&quot;-allowUntrusted&quot; /&gt;
+  &lt;arg value=&quot;/U:Administrator&quot; /&gt;
+  &lt;arg value=&quot;/P:NotTellingYou&quot; /&gt;
+  &lt;arg value=&quot;/A:Basic&quot; /&gt;
+  &lt;arg value=&quot;-enableRule:DoNotDeleteRule&quot; /&gt;
+&lt;/exec&gt;</code></pre>
+
+<p>So, this command runs the &#8220;MonitoringApp.deploy.cmd&#8221; script that actually exists when you build the package. The arguments tell it where to publish, and also I set an additional rule (DoNotDeleteRule) that tells it not to delete anything already on the destination that wasn&#8217;t deployed by web deploy (e.g. user uploads).</p>
+
+<p>Almost done. You see, the script doesn&#8217;t know which IIS site to target (e.g. MonitoringAppTest in my screenshot above), and I have a lot of them. It turns out that the package that is generated contains a &#8220;.SetParameters.xml&#8221; file, that contains additional parameters for the deployment. I needed to set name to my IIS web site name&#8230;</p>
+
+<pre><code>&lt;xmlpoke file=&quot;MonitoringApp/obj/${SolutionConfiguration}/Package/MonitoringApp.SetParameters.xml&quot;
+     xpath=&quot;parameters/setParameter[@name = &#39;IIS Web Application Name&#39;]/@value&quot;
+     value=&quot;${deploy.iisWebSite}&quot; /&gt;</code></pre>
+
+<p>Nant to the rescue! So I &#8220;poke&#8221; the IIS web application name parameter, using the property $deploy.iisWebSite (kind of like a variable in a nant script). I&#8217;ll come back to where that gets set in the next section&#8230;</p>
+
+<h2 id='plumbing_it_into_teamcity'>Plumbing it into TeamCity</h2>
+
+<p>This is really simple. First, I did all the simple stuff - created a new project, set the SVN repo, told it to ttrigger a NANT scipt target, and <strong>set the build trigger to manual</strong> - I only want to deploy when I say so!</p>
+
+<p>Once all this is done, I needed some way to tell TeamCity which IIS site to deploy to. To do this, I added a bunch of command line parameters to my nant build step - like <code>-D:deploy.iisWebSite=%env.iisWebSite%</code> That tells TC to call nant and set the property &#8220;deploy.iisWebSite&#8221; to %env.iisWebSite%. Next, I go to the &#8220;Build Parameters&#8221; section in TeamCity, and set env.iisWebSite by adding an Environment variable with a value &#8220;MonitoringAppTest&#8221;. All done!</p>
+
+<p>The beauty of this setup is that if I want to deploy to another site on the same box, I just need to copy the old deployment project in TC to a new one, and just change the build parameter to whatever&#8230; So simple!</p>
+
+<h2 id='summary'>Summary</h2>
+
+<p><img alt='dependencies' src='/images/msdeploy3.jpg' /></p>
+
+<p>There it is. Now I can see how many changes are waiting to be deployed from TC by looking at the &#8220;pending&#8221; dropdown, and when ready I hit &#8220;Run&#8221;, and off we go. I missed a few bits out from this, such as how we store the packages as artifacts in TeamCity, but I hope this shows how productive using Web Deploy, TeamCity, and a bit of NANT is to automate the otherwise dull process of deployment.</p>
+
+<p>I&#8217;ll also talk about how we manage SQL updates automatically in another post.</p>
+    <hr>
+    <div class="pagination">
+      <ul>
+      
+        <li class="prev"><a href="/dev/2012/03/27/javascript---the-good-parts" title="JavaScript - the good parts">&larr; Previous</a></li>
+      
+        <li><a href="/archive.html">Archive</a></li>
+      
+        <li class="next disabled"><a>Next &rarr;</a>
+      
+      </ul>
+    </div>
+    <hr>
+      <respond_button buttonType="1" title="Technology Automated web app deployment with TeamCity and MSDeploy" keyword="Automated web app deployment with TeamCity and MSDeploy" category="Technology"></respond_button>    
+    <hr>
+    
+
+
+  <div id="disqus_thread"></div>
+<script type="text/javascript">
+    var disqus_developer = 1;
+    var disqus_shortname = 'mattwobertsnewblog'; // required: replace example with your forum shortname
+    
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function() {
+        var dsq = document.createElement('script'); dsq.type = 'text/javascript'; dsq.async = true;
+        dsq.src = 'http://' + disqus_shortname + '.disqus.com/embed.js';
+        (document.getElementsByTagName('head')[0] || document.getElementsByTagName('body')[0]).appendChild(dsq);
+    })();
+</script>
+<noscript>Please enable JavaScript to view the <a href="http://disqus.com/?ref_noscript">comments powered by Disqus.</a></noscript>
+<a href="http://disqus.com" class="dsq-brlink">blog comments powered by <span class="logo-disqus">Disqus</span></a>
+
+
+
+
+
+COMMENTSINCLUDE
+  </div>
+  
+  <div class="span4">
+    <h4>Published</h4>
+    <div class="date"><span>04 April 2012</span></div>
+
+  
+    <h4>Tags</h4>
+    <ul class="tag_box">
+    
+    
+
+
+  
+     
+    	<li><a href="/tags.html#teamcity-ref">teamcity <span>1</span></a></li>
+     
+    	<li><a href="/tags.html#deployment-ref">deployment <span>1</span></a></li>
+     
+    	<li><a href="/tags.html#msdeploy-ref">msdeploy <span>1</span></a></li>
+    
+  
+
+
+
+    </ul>
+    
+  </div>
+</div>
+
+
+      </div>
+
+      <footer>
+        <p>&copy; Matt Roberts 2012 
+          with help from <a href="http://jekyllbootstrap.com" target="_blank" title="The Definitive Jekyll Blogging Framework">Jekyll Bootstrap</a>
+          and <a href="http://twitter.github.com/bootstrap/" target="_blank">Twitter Bootstrap</a>
+        </p>
+      </footer>
+
+    </div> <!-- /container -->
+
+    
+    <script type="text/javascript">
+    /* * * CONFIGURATION VARIABLES: EDIT BEFORE PASTING INTO YOUR WEBPAGE * * */
+	var disqus_developer = 1;
+    var disqus_shortname = 'mattwobertsnewblog'; // required: replace example with your forum shortname
+    
+
+    /* * * DON'T EDIT BELOW THIS LINE * * */
+    (function () {
+        var s = document.createElement('script'); s.async = true;
+        s.type = 'text/javascript';
+        s.src = 'http://' + disqus_shortname + '.disqus.com/count.js';
+        (document.getElementsByTagName('HEAD')[0] || document.getElementsByTagName('BODY')[0]).appendChild(s);
+    }());
+</script>
+  </body>
+</html>
+
