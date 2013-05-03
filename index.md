@@ -3,7 +3,8 @@ layout: posts
 title: "Recent posts"
 ---
 {% include JB/setup %}
-<div class="row-fluid">
+
+<div>
 	{% for post in site.posts %}
 		{% include JB/post_content %}
 	{% endfor %}
