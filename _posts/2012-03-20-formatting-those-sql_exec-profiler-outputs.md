@@ -5,7 +5,7 @@ category: Development
 tags: [sql, projects]
 summary: A little tool I wrote to format sql outputs with sql_exec gunk
 ---
-{% include JB/setup %}
+
 
 I was debugging some long running queries the other day, using SQL Server profiler (BTW - here is a very decent free equivalent of this for those of you using SQL Express - which doesn't come with the profiler: [sqlprofiler](https://sites.google.com/site/sqlprofiler) ) .
 

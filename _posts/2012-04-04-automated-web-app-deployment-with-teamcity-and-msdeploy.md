@@ -5,7 +5,7 @@ category: Development
 tags: [teamcity, deployment, msdeploy]
 summary: Getting started with teamcity and msdeploy.
 ---
-{% include JB/setup %}
+
 
 Deployment. Don't you just love it. Well, we don't, which is why I needed to build something to make our asp.net mvc web application deployable, from a single click ideally. This post is about that, and what I did, and how it all works. A lot of what I did here was helped by a mammouth series of blog posts by Troy Hunt, which you can find [here](http://www.troyhunt.com/2010/11/you-deploying-it-wrong-teamcity.html). He goes into a lot of detail about setting it up, so if you're looking for a step-by-step guide, I'd recommend you head over that way. This post is more a summary explanation of what we did and how it works for us.
 

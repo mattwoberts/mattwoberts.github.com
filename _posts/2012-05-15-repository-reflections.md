@@ -5,7 +5,7 @@ category: Development
 tags: [Architecture, Development]
 summary: Reflecting on the use of the repository pattern.
 ---
-{% include JB/setup %}
+
 
 Se being a good .net developer, I use an ORM, like everyone else, right ;) Okay, so that's not entirely true, I've seen some pretty old fashioned dataset-based data layers still doing the rounds, and of course some people seem to have decided that an ORM is the worst thing since global variables - hell it's even an anti-pattern to [some people](http://seldo.com/weblog/2011/06/15/orm_is_an_antipattern).
 

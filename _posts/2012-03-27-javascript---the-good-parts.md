@@ -6,7 +6,7 @@ category: Development
 tags: [javascript]
 summary: Learning some JavaScript goodess, with Crockford's help.
 ---
-{% include JB/setup %}
+
 
 I reckon I've been coding bits of JavaScript pushing on 14 years. In all that time I've gotten better at it, but was guilty of never really caring about it until about 4 years ago. At first it was a necessary evil (I even used vbscript circa 1999 for some sites because I thought it was easier!), then it became just something I did without thinking too much about the code I was writing. But as it grew and grew, and more impressive and elaborate libraries started appearing, I realised I should pay more attention.
 

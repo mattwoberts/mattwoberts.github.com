@@ -5,7 +5,7 @@ category: Development
 tags: [c#]
 summary: .NET Development on a Mac Book Pro
 ---
-{% include JB/setup %}
+
 
 I was lucky enough to get a shiny new mac book pro at my new job - one of the new 2013 mac book pro retinas. Setting it up for (mostly) .NET development has been a bit of a task, so I thought I'd share my experiences here :) The challenge:
 
